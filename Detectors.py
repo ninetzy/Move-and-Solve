@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+from scipy.linalg import hilbert
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
@@ -75,3 +76,58 @@ class JumpCounter:
             self.jump_count += 1
         return self.jump_count
 
+class SquatCounter:
+    def __init__(self):
+        # Счетчик приседаний
+        self.squat_count = 0
+
+        # Сейчас в приседе?
+        self.is_down = False
+
+        # Пороги для определения приседа
+        # Максимальный угол в коленях в приседе
+        self.SQUAT_ANGLE_THRESHOLD = 100
+
+        # Минимальный угол в коленях, когда человек стоит
+        self.STAND_ANGLE_THRESHOLD = 160
+
+    def calculate_angle(self, a, b, c):
+        # Получаем координаты точек
+        a = np.array([a.x, a.y])
+        b = np.array([b.x, b.y])
+        c = np.array([c.x, c.y])
+
+        # Вычислем вектора от колена до лодыжки и от колена до бедра
+        ba = a - b
+        bc = c - b
+
+        # Находим косинус угла, с помощью деления скалярного
+        # произведения векторов на длины этих векторов
+        cos_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+
+        # Считаем угл с помощью арккосинуса и возращаем его в градусах
+        angle = np.arccos(cos_angle)
+        return np.degrees(angle)
+
+    def update(self, landmarks):
+        # Угол в левом колене
+        left_knee_angle = self.calculate_angle(landmarks.landmark[23], landmarks.landmark[25], landmarks.landmark[27])
+
+        # Угол в правом колене
+        right_knee_angle = self.calculate_angle(landmarks.landmark[24], landmarks.landmark[26], landmarks.landmark[28])
+
+        # Находим усредненное значение углов в коленях
+        sr_angle = (left_knee_angle + right_knee_angle) / 2
+
+        # Если человек был не в приседе, а сейчас угол в коленях меньше максимального угла
+        # в коленях при приседе, то меняеем статус на "в приседе"
+        if not self.is_down and sr_angle < self.SQUAT_ANGLE_THRESHOLD:
+            self.is_down = True
+
+        # Если человек был в приседе, а сейчас угол в коленях больше минимального угла
+        # в коленях, когда человек стоит, то меняем статус на "не в приседе" и засчитываем приседание
+        elif self.is_down and sr_angle > self.STAND_ANGLE_THRESHOLD:
+            self.is_down = False
+            self.squat_count += 1
+
+        return self.squat_count
