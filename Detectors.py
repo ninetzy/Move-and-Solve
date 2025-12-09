@@ -130,3 +130,74 @@ class SquatCounter:
             self.squat_count += 1
 
         return self.squat_count
+
+class BendCounter:
+    def __init__(self):
+        # Счетчик Наклонов
+        self.bend_count = 0
+
+        # Сейчас в наклоне?
+        self.is_bend = False
+
+        # Пороги для определения наклона
+        # Максимальный угол в бедрах при наклоне
+        self.BEND_HIP_ANGLE_THRESHOLD = 70
+
+        # Минимальный угол в коленях при наклоне
+        self.BEND_KNEE_ANGLE_THRESHOLD = 150
+
+        # Минимальный угол в бедрах, когда человек стоит
+        self.STAND_ANGLE_THRESHOLD = 100
+
+    def calculate_angle(self, a, b, c):
+        # Получаем координаты точек
+        a = np.array([a.x, a.y])
+        b = np.array([b.x, b.y])
+        c = np.array([c.x, c.y])
+
+        # Вычислем вектора от плеча до бедра и от бедра до колена (для угла в бедрах)
+        # Вычислем вектора от колена до лодыжки и от колена до бедра (для угла в коленях)
+        ba = a - b
+        bc = c - b
+
+        # Находим косинус угла, с помощью деления скалярного
+        # произведения векторов на длины этих векторов
+        cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+
+        # Считаем угл с помощью арккосинуса и возращаем его в градусах
+        angle = np.arccos(cosine_angle)
+        return np.degrees(angle)
+
+    def update(self, landmarks):
+        # Угол в левом бедре
+        left_hip_angle = self.calculate_angle(landmarks.landmark[11], landmarks.landmark[23], landmarks.landmark[25])
+
+        # Угол в правом бедре
+        right_hip_angle = self.calculate_angle(landmarks.landmark[12], landmarks.landmark[24], landmarks.landmark[26])
+
+        # Находим усредненное значение углов в бедрах
+        avg_hip_angle = (left_hip_angle + right_hip_angle) / 2
+
+        # Угол в левом колене
+        left_knee_angle = self.calculate_angle(landmarks.landmark[23], landmarks.landmark[25], landmarks.landmark[27])
+
+        # Угол в правом колене
+        right_knee_angle = self.calculate_angle(landmarks.landmark[24], landmarks.landmark[26], landmarks.landmark[28])
+
+        # Находим усредненное значение углов в коленях
+        avg_knee_angle = (left_knee_angle + right_knee_angle) / 2
+
+        # Если человек был не в наклоне, а сейчас угол в бедрах меньше максимального угла
+        # в бедрах при наклоне и угол в коленях больше минимального угла в коленях при наклоне,
+        # то меняеем статус на "в наклоне"
+        if (not self.is_bend and avg_hip_angle < self.BEND_HIP_ANGLE_THRESHOLD
+                and avg_knee_angle > self.BEND_KNEE_ANGLE_THRESHOLD):
+            self.is_bend = True
+
+        # Если человек был в наклонк, а сейчас угол в бедрах больше минимального угла
+        # в бедрах, когда человек стоит, то меняем статус на "не в наклоне" и засчитываем наклон
+        elif self.is_bend and avg_hip_angle > self.STAND_ANGLE_THRESHOLD:
+            self.is_bend = False
+            self.bend_count += 1
+
+        return self.bend_count
