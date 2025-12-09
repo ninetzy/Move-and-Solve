@@ -1,6 +1,6 @@
 import cv2
 import mediapipe as mp
-from Detectors import JumpCounter, SquatCounter
+from Detectors import JumpCounter, SquatCounter, BendCounter
 
 cap = cv2.VideoCapture(0)
 mp_pose = mp.solutions.pose
@@ -8,13 +8,15 @@ mp_drawing = mp.solutions.drawing_utils
 pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 jump_counter = JumpCounter()
 squat_counter = SquatCounter()
+bend_counter = BendCounter()
 last_jump_count = 0
 last_squat_count = 0
+last_bend_count = 0
 
 # Функция для подсчета движений
 def movements_counter():
     # Используем глобальные переменные last_jump_count и last_squat_count
-    global last_jump_count, last_squat_count
+    global last_jump_count, last_squat_count, last_bend_count
     # Получаем изображение с камеры
     _, frame = cap.read()
 
@@ -31,6 +33,9 @@ def movements_counter():
         # С помощью класса SquatCounter получаем кол-во сделанных приседаний
         current_squat_count = squat_counter.update(results.pose_landmarks)
 
+        # С помощью класса BendCounter получаем кол-во сделанных наклонов
+        current_bend_count = bend_counter.update(results.pose_landmarks)
+
         # Если кол-во прыжков изменилось с прошлого кадра
         if current_jump_count != last_jump_count:
             # Записываем текущее кол-во прыжков в last_jump_count и выводим новое кол-во прыжков
@@ -42,6 +47,12 @@ def movements_counter():
             # Записываем текущее кол-во приседаний в last_squat_count и выводим новое кол-во приседаний
             last_squat_count = current_squat_count
             print(f'Приседания - {current_squat_count}')
+
+        # Если кол-во наклонов изменилось с прошлого кадра
+        if current_bend_count != last_bend_count:
+            # Записываем текущее кол-во наклонов в last_bend_count и выводим новое кол-во наклонов
+            last_bend_count = current_bend_count
+            print(f'Наклоны - {current_bend_count}')
 
         # Рисуем ключевые точки на изображении камеры (для удобства)
         mp_drawing.draw_landmarks(
@@ -56,8 +67,8 @@ def movements_counter():
         # Сбрасываем стартовые переменные до появления человека в кадре
         jump_counter.start_height = None
         jump_counter.is_in_air = False
-        squat_counter.start_height = None
         squat_counter.is_down = False
+        bend_counter.is_bend = False
 
     # Демонстрация изображения с камеры
     cv2.imshow('Camera', frame)
