@@ -1,10 +1,4 @@
-import cv2
-import mediapipe as mp
 import numpy as np
-
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
-pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 class JumpCounter:
     def __init__(self):
@@ -26,10 +20,10 @@ class JumpCounter:
 
     def calculate_hip_height(self, landmarks):
         # Левое бедро
-        left_hip = landmarks.landmark[23]
+        left_hip = landmarks[23]
 
         # Правое бедро
-        right_hip = landmarks.landmark[24]
+        right_hip = landmarks[24]
 
         # Среднее положение бедер по y-координате
         hip_y = (left_hip.y + right_hip.y) / 2
@@ -110,10 +104,10 @@ class SquatCounter:
 
     def update(self, landmarks):
         # Угол в левом колене
-        left_knee_angle = self.calculate_angle(landmarks.landmark[23], landmarks.landmark[25], landmarks.landmark[27])
+        left_knee_angle = self.calculate_angle(landmarks[23], landmarks[25], landmarks[27])
 
         # Угол в правом колене
-        right_knee_angle = self.calculate_angle(landmarks.landmark[24], landmarks.landmark[26], landmarks.landmark[28])
+        right_knee_angle = self.calculate_angle(landmarks[24], landmarks[26], landmarks[28])
 
         # Находим усредненное значение углов в коленях
         sr_angle = (left_knee_angle + right_knee_angle) / 2
@@ -170,19 +164,19 @@ class BendCounter:
 
     def update(self, landmarks):
         # Угол в левом бедре
-        left_hip_angle = self.calculate_angle(landmarks.landmark[11], landmarks.landmark[23], landmarks.landmark[25])
+        left_hip_angle = self.calculate_angle(landmarks[11], landmarks[23], landmarks[25])
 
         # Угол в правом бедре
-        right_hip_angle = self.calculate_angle(landmarks.landmark[12], landmarks.landmark[24], landmarks.landmark[26])
+        right_hip_angle = self.calculate_angle(landmarks[12], landmarks[24], landmarks[26])
 
         # Находим усредненное значение углов в бедрах
         avg_hip_angle = (left_hip_angle + right_hip_angle) / 2
 
         # Угол в левом колене
-        left_knee_angle = self.calculate_angle(landmarks.landmark[23], landmarks.landmark[25], landmarks.landmark[27])
+        left_knee_angle = self.calculate_angle(landmarks[23], landmarks[25], landmarks[27])
 
         # Угол в правом колене
-        right_knee_angle = self.calculate_angle(landmarks.landmark[24], landmarks.landmark[26], landmarks.landmark[28])
+        right_knee_angle = self.calculate_angle(landmarks[24], landmarks[26], landmarks[28])
 
         # Находим усредненное значение углов в коленях
         avg_knee_angle = (left_knee_angle + right_knee_angle) / 2
@@ -194,7 +188,7 @@ class BendCounter:
                 and avg_knee_angle > self.BEND_KNEE_ANGLE_THRESHOLD):
             self.is_bend = True
 
-        # Если человек был в наклонк, а сейчас угол в бедрах больше минимального угла
+        # Если человек был в наклоне, а сейчас угол в бедрах больше минимального угла
         # в бедрах, когда человек стоит, то меняем статус на "не в наклоне" и засчитываем наклон
         elif self.is_bend and avg_hip_angle > self.STAND_ANGLE_THRESHOLD:
             self.is_bend = False
