@@ -1,6 +1,6 @@
 import cv2
 import mediapipe as mp
-from Detectors import JumpCounter, SquatCounter, BendCounter
+from Detectors import JumpCounter, SquatCounter, BendCounter, HandUpDetector
 from mediapipe.tasks.python import vision
 from mediapipe.tasks import python
 
@@ -28,11 +28,12 @@ mp_pose = mp.solutions.pose
 
 # Список с данными для каждого человека
 people_data = []
+all_hands_up = False
 
 # Функция для подсчета движений
 def movements_counter():
-    # Используем глобальную переменную people_data
-    global people_data
+    # Используем глобальную переменную people_data и all_hands_up
+    global people_data, all_hands_up
 
     # Получаем изображение с камеры
     success, frame = cap.read()
@@ -63,6 +64,8 @@ def movements_counter():
                     'squat_counter': SquatCounter(),
                     # Счетчик наклонов для этого человека
                     'bend_counter': BendCounter(),
+                    # Детектор поднятой руки
+                    'hand_up_detector': HandUpDetector(),
                     # Последнее зафиксированное количество прыжков
                     'last_jump_count': 0,
                     # Последнее зафиксированное количество приседаний
@@ -70,6 +73,8 @@ def movements_counter():
                     # Последнее зафиксированное количество наклонов
                     'last_bend_count': 0
                 })
+        # Счетчик людей с поднятой рукой
+        hands_up_count = 0
 
         # Циклом проходимся по каждому человеку
         for person_id in range(num_people):
@@ -85,6 +90,11 @@ def movements_counter():
 
             # С помощью класса BendCounter получаем кол-во сделанных наклонов
             current_bend_count = person_data['bend_counter'].update(landmarks)
+
+            # Определяем, поднята ли рука у текущего человека
+            hand_up = person_data['hand_up_detector'].detect_hand_up(landmarks)
+            if hand_up:
+                hands_up_count += 1
 
             # Если кол-во прыжков изменилось с прошлого кадра
             if current_jump_count != person_data['last_jump_count']:
@@ -129,6 +139,14 @@ def movements_counter():
                 mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
                 mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2)
             )
+            # Проверяем, все ли люди подняли руку
+            if num_people > 0 and hands_up_count == num_people:
+                if not all_hands_up:
+                    print(f"Answer saved")
+                    all_hands_up = True
+            else:
+                all_hands_up = False
+
     # Если человек не в кадре
     else:
         # Сбрасываем данные для всех людей
