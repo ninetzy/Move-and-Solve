@@ -195,3 +195,34 @@ class BendCounter:
             self.bend_count += 1
 
         return self.bend_count
+
+class HandUpDetector:
+    def __init__(self):
+        # Пороги для определения поднятой руки
+        # Рука считается поднятой, если запястье выше плеча на это число
+        self.HAND_UP_THRESHOLD = 0.1
+
+    def detect_right_hand_up(self, landmarks):
+        # Правое плечо
+        right_shoulder = landmarks[12]
+
+        # Правое запястье
+        right_wrist = landmarks[16]
+
+        # Проверяем, что запястье выше плеча
+        return right_wrist.y < right_shoulder.y - self.HAND_UP_THRESHOLD
+
+
+    def detect_left_hand_up(self, landmarks):
+        # Левое плечо
+        left_shoulder = landmarks[11]
+
+        # Левое запястье
+        left_wrist = landmarks[15]
+
+        # Проверяем, что запястье выше плеча
+        return left_wrist.y < left_shoulder.y - self.HAND_UP_THRESHOLD
+
+    def detect_hand_up(self, landmarks):
+        # Если одна из рук поднята, то возвращается True
+        return self.detect_right_hand_up(landmarks) or self.detect_left_hand_up(landmarks)
