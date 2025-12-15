@@ -47,6 +47,11 @@ def movements_counter():
     # Находим все позы людей в кадре с помощью Tasks
     detect_result = detector.detect(mp_image)
 
+    # Переменные для подсчета общего количества очков
+    total_jumps = 0
+    total_squats = 0
+    total_bends = 0
+
     # Если найдены ключевые точки (в кадре есть люди)
     if detect_result.pose_landmarks:
         # Определяем количество людей в кадре
@@ -90,6 +95,11 @@ def movements_counter():
 
             # С помощью класса BendCounter получаем кол-во сделанных наклонов
             current_bend_count = person_data['bend_counter'].update(landmarks)
+
+            # Добавляем движения к итоговым суммам
+            total_jumps += current_jump_count
+            total_squats += current_squat_count
+            total_bends += current_bend_count
 
             # Определяем, поднята ли рука у текущего человека
             hand_up = person_data['hand_up_detector'].detect_hand_up(landmarks)
@@ -139,13 +149,20 @@ def movements_counter():
                 mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
                 mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2)
             )
-            # Проверяем, все ли люди подняли руку
-            if num_people > 0 and hands_up_count == num_people:
-                if not all_hands_up:
-                    print(f"Answer saved")
-                    all_hands_up = True
-            else:
-                all_hands_up = False
+        # Проверяем, все ли люди подняли руку
+        if num_people > 0 and hands_up_count == num_people:
+            if not all_hands_up:
+                print(f"Answer saved")
+                all_hands_up = True
+        else:
+            all_hands_up = False
+
+        # Вычисляем общее количество очков по формуле
+        # прыжки + 5 * наклоны + 10 * приседания
+        total_points = total_jumps + (5 * total_bends) + (10 * total_squats)
+
+        # Выводим общее количество очков в консоль
+        print(f"Очки: {total_points}")
 
     # Если человек не в кадре
     else:
