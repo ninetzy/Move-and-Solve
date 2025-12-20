@@ -10,11 +10,11 @@ MODEL_PATH = "pose_landmarker_full.task"
 with open(MODEL_PATH, "rb") as f:
     model_buffer = f.read()
 
-# Настраиваем детектор позы, чтобы обрабатывал только 3 человека
+# Настраиваем детектор позы в режиме видео для 3 человек
 base_options = python.BaseOptions(model_asset_buffer=model_buffer)
 options = vision.PoseLandmarkerOptions(
     base_options=base_options,
-    running_mode=vision.RunningMode.IMAGE,
+    running_mode=vision.RunningMode.VIDEO,
     num_poses=3,
     min_pose_detection_confidence=0.5,
     min_pose_presence_confidence=0.5,
@@ -30,13 +30,19 @@ mp_pose = mp.solutions.pose
 people_data = []
 all_hands_up = False
 
+# Переменная для обозначения порядка кадров во времени в режими видео
+time_cadr = 0
+
 # Функция для подсчета движений
 def movements_counter():
-    # Используем глобальную переменную people_data и all_hands_up
-    global people_data, all_hands_up
+    # Используем глобальную переменную people_data, all_hands_up и time_cadr
+    global people_data, all_hands_up, time_cadr
 
     # Получаем изображение с камеры
     success, frame = cap.read()
+
+    # Увеличиваем счетчик кадров
+    time_cadr += 1
 
     # Переводим в RGB
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -45,7 +51,7 @@ def movements_counter():
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
 
     # Находим все позы людей в кадре с помощью Tasks
-    detect_result = detector.detect(mp_image)
+    detect_result = detector.detect_for_video(mp_image, time_cadr)
 
     # Переменные для подсчета общего количества очков
     total_jumps = 0
@@ -76,7 +82,9 @@ def movements_counter():
                     # Последнее зафиксированное количество приседаний
                     'last_squat_count': 0,
                     # Последнее зафиксированное количество наклонов
-                    'last_bend_count': 0
+                    'last_bend_count': 0,
+                    # ID человека для отслеживания
+                    'person_id': i
                 })
         # Счетчик людей с поднятой рукой
         hands_up_count = 0
@@ -149,20 +157,20 @@ def movements_counter():
                 mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
                 mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2)
             )
-        # Проверяем, все ли люди подняли руку
-        if num_people > 0 and hands_up_count == num_people:
-            if not all_hands_up:
-                print(f"Answer saved")
-                all_hands_up = True
-        else:
-            all_hands_up = False
 
         # Вычисляем общее количество очков по формуле
         # прыжки + 5 * наклоны + 10 * приседания
         total_points = total_jumps + (5 * total_bends) + (10 * total_squats)
 
-        # Выводим общее количество очков в консоль
-        print(f"Очки: {total_points}")
+        # Проверяем, все ли люди подняли руку
+        if num_people > 0 and hands_up_count == num_people:
+            if not all_hands_up:
+                print(f"Answer saved")
+                all_hands_up = True
+                # Выводим общее количество очков в консоль
+                print(f"Очки: {total_points}")
+        else:
+            all_hands_up = False
 
     # Если человек не в кадре
     else:
